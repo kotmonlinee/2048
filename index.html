@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2048 - 经典数字合成游戏</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind 配置 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#FF6B6B',
+                        secondary: '#4ECDC4',
+                        accent: '#FFD166',
+                        dark: '#292F36',
+                        light: '#F7FFF7',
+                        // 2048方块颜色
+                        'tile-0': '#CDC1B4',
+                        'tile-2': '#EEE4DA',
+                        'tile-4': '#EDE0C8',
+                        'tile-8': '#F2B179',
+                        'tile-16': '#F59563',
+                        'tile-32': '#F67C5F',
+                        'tile-64': '#F65E3B',
+                        'tile-128': '#EDCF72',
+                        'tile-256': '#EDCC61',
+                        'tile-512': '#EDC850',
+                        'tile-1024': '#EDC53F',
+                        'tile-2048': '#EDC22E',
+                    },
+                    fontFamily: {
+                        poppins: ['Poppins', 'sans-serif'],
+                    },
+                },
+            }
+        }
+    </script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .text-shadow {
+                text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+            }
+            .transition-transform-opacity {
+                transition-property: transform, opacity;
+            }
+            .grid-4x4 {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+                grid-template-rows: repeat(4, minmax(0, 1fr));
+            }
+            .perspective {
+                perspective: 1000px;
+            }
+            .preserve-3d {
+                transform-style: preserve-3d;
+            }
+            /* 动画类 */
+            .animate-pulse {
+                animation: pulse 0.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+            }
+            .animate-pop {
+                animation: pop 0.2s cubic-bezier(0.4, 0, 0.6, 1);
+            }
+            @keyframes pulse {
+                0%, 100% {
+                    opacity: 1;
+                }
+                50% {
+                    opacity: 0.7;
+                }
+            }
+            @keyframes pop {
+                0% {
+                    transform: scale(0.8);
+                    opacity: 0;
+                }
+                50% {
+                    transform: scale(1.1);
+                }
+                100% {
+                    transform: scale(1);
+                    opacity: 1;
+                }
+            }
+        }
+    </style>
+</head>
+<body class="font-poppins bg-gradient-to-br from-light to-secondary min-h-screen flex flex-col justify-between">
+    <!-- 游戏容器 -->
+    <div class="container mx-auto px-4 py-8 max-w-3xl">
+        <!-- 头部区域 -->
+        <header class="flex flex-col md:flex-row justify-between items-center mb-8">
+            <div class="mb-4 md:mb-0">
+                <h1 class="text-[clamp(2.5rem,5vw,4rem)] font-bold text-primary text-shadow">2048</h1>
+                <p class="text-gray-700 text-sm md:text-base">滑动方块，尝试合成2048！</p>
+            </div>
+            
+            <div class="flex space-x-4">
+                <!-- 分数显示 -->
+                <div class="bg-dark/80 text-light rounded-lg px-4 py-3 text-center">
+                    <div class="text-xs uppercase tracking-wider">分数</div>
+                    <div id="score" class="text-2xl font-bold">0</div>
+                </div>
+                
+                <!-- 最高分显示 -->
+                <div class="bg-dark/80 text-light rounded-lg px-4 py-3 text-center">
+                    <div class="text-xs uppercase tracking-wider">最高分</div>
+                    <div id="best-score" class="text-2xl font-bold">0</div>
+                </div>
+            </div>
+        </header>
+        
+        <!-- 控制按钮区域 -->
+        <div class="flex justify-center mb-6 space-x-4">
+            <button id="new-game" class="bg-primary hover:bg-primary/90 text-white font-bold py-2 px-6 rounded-lg transition-all transform hover:scale-105 shadow-lg flex items-center">
+                <i class="fa fa-refresh mr-2"></i> 新游戏
+            </button>
+            <button id="how-to-play" class="bg-dark/70 hover:bg-dark text-white font-bold py-2 px-6 rounded-lg transition-all transform hover:scale-105 shadow-lg flex items-center">
+                <i class="fa fa-question-circle mr-2"></i> 玩法
+            </button>
+        </div>
+        
+        <!-- 游戏棋盘 -->
+        <div class="relative w-full max-w-4xl mx-auto mb-8" style="aspect-ratio: 5/7;">
+            <!-- 棋盘背景 -->
+            <div id="game-board" class="absolute inset-0 bg-dark/20 rounded-xl grid gap-3 p-4 transition-all duration-300">
+                <!-- 空白格子 -->
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+                  <div class="bg-tile-0/80 rounded-lg"></div>
+            </div>
+            
+            <!-- 游戏结束遮罩 -->
+            <div id="game-over" class="absolute inset-0 bg-dark/80 rounded-xl flex flex-col justify-center items-center opacity-0 pointer-events-none transition-opacity duration-500">
+                <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold text-white mb-4">游戏结束！</h2>
+                <p class="text-light mb-6 text-center px-4">挑战失败了？下载完整游戏体验更多精彩内容！</p>
+                <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
+                    <button id="restart-game" class="bg-primary hover:bg-primary/90 text-white font-bold py-3 px-8 rounded-lg transition-all transform hover:scale-105 shadow-lg">
+                        再玩一次
+                    </button>
+                    <a href="https://play.google.com/store" target="_blank" class="bg-accent hover:bg-accent/90 text-dark font-bold py-3 px-8 rounded-lg transition-all transform hover:scale-105 shadow-lg flex items-center justify-center">
+                        <i class="fa fa-android mr-2"></i> 下载完整版
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 游戏下载区域 -->
+        <div class="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-xl mb-8">
+            <div class="flex flex-col md:flex-row items-center justify-between">
+                <div class="mb-4 md:mb-0">
+                    <h3 class="text-xl font-bold text-dark mb-2">喜欢这个游戏？</h3>
+                    <p class="text-gray-600">下载完整版，体验更多关卡和功能！</p>
+                </div>
+                <a href="https://play.google.com/store" target="_blank" class="bg-accent hover:bg-accent/90 text-dark font-bold py-3 px-8 rounded-lg transition-all transform hover:scale-105 shadow-lg flex items-center justify-center">
+                    <i class="fa fa-android mr-2 text-2xl"></i> 前往Google Play
+                </a>
+            </div>
+        </div>
+        
+        <!-- 游戏规则说明 -->
+        <div id="game-rules" class="hidden bg-white/90 backdrop-blur-sm rounded-xl p-6 shadow-xl mb-8">
+            <h3 class="text-xl font-bold text-dark mb-4">游戏规则</h3>
+            <ul class="list-disc list-inside text-gray-700 space-y-2">
+                <li>使用方向键或滑动屏幕来移动方块</li>
+                <li>相同数字的方块相撞时会合并成它们的和</li>
+                <li>每次移动后会随机生成一个2或4的方块</li>
+                <li>尝试合成一个2048的方块！</li>
+                <li>当棋盘填满且无法移动时，游戏结束</li>
+            </ul>
+        </div>
+    </div>
+    
+    <!-- 页脚 -->
+    <footer class="bg-dark/80 text-white py-6">
+        <div class="container mx-auto px-4 text-center">
+            <p>&copy; 2023 2048 游戏. 所有权利保留.</p>
+            <div class="flex justify-center space-x-4 mt-4">
+                <a href="#" class="text-light hover:text-accent transition-colors"><i class="fa fa-facebook"></i></a>
+                <a href="#" class="text-light hover:text-accent transition-colors"><i class="fa fa-twitter"></i></a>
+                <a href="#" class="text-light hover:text-accent transition-colors"><i class="fa fa-instagram"></i></a>
+                <a href="#" class="text-light hover:text-accent transition-colors"><i class="fa fa-youtube-play"></i></a>
+            </div>
+        </div>
+    </footer>
+    
+    <!-- 游戏脚本 -->
+    <script src="js/game.js"></script>
+    <script src="js/ui.js"></script>
+</body>
+</html>
