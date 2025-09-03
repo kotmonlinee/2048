@@ -1,15 +1,27 @@
 // UI交互逻辑
+import { Game2048 } from './game.js'
+import { trackGAEvent } from './paramsHandler.js'
+
 class GameUI {
     constructor() {
         this.game = new Game2048();
         this.gameBoard = document.getElementById('game-board');
         this.scoreElement = document.getElementById('score');
         this.bestScoreElement = document.getElementById('best-score');
-        this.newGameButton = document.getElementById('new-game');
+        // this.newGameButton = document.getElementById('new-game');
         this.restartGameButton = document.getElementById('restart-game');
         this.gameOverElement = document.getElementById('game-over');
-        this.howToPlayButton = document.getElementById('how-to-play');
-        this.gameRulesElement = document.getElementById('game-rules');
+        
+        // 限时挑战模式UI元素
+        this.countdownElement = document.getElementById('countdown');
+        this.timerElement = document.getElementById('timer');
+        this.welcomeScreen = document.getElementById('welcome-screen');
+        this.countdownScreen = document.getElementById('countdown-screen');
+        this.readyCountdownElement = document.getElementById('ready-countdown');
+        this.startChallengeButton = document.getElementById('start-challenge');
+        this.gameOverTitle = document.getElementById('game-over-title');
+        this.gameOverMessage = document.getElementById('game-over-message');
+        this.downloadAppButton = document.getElementById('download-app');
         
         // 触摸事件变量
         this.touchStartX = 0;
@@ -26,12 +38,28 @@ class GameUI {
         this.currentDragTarget = null; // 当前拖拽下方的目标方块元素
         this.currentDragTargetCanMerge = false; // 当前目标是否可以合并
         
+        // 初始化游戏事件回调
+        this.initGameCallbacks();
+        
         // 初始化UI
         this.initUI();
         // 添加事件监听
         this.addEventListeners();
         // 渲染游戏棋盘
         this.renderBoard();
+    }
+    
+    // 初始化游戏事件回调
+    initGameCallbacks() {
+        // 设置时间更新回调 - 包含毫秒数参数
+        this.game.setTimeUpdateCallback((remainingTime, remainingMilliseconds = 0) => {
+            this.updateCountdown(remainingTime, remainingMilliseconds);
+        });
+        
+        // 设置游戏完成回调
+        this.game.setGameCompleteCallback((isSuccess, reason = null) => {
+            this.showGameResult(isSuccess, reason);
+        });
     }
     
     // 初始化UI
@@ -59,6 +87,11 @@ class GameUI {
         
         // 隐藏游戏结束遮罩
         this.gameOverElement.classList.add('opacity-0', 'pointer-events-none');
+        
+        // 确保棋盘可见
+        this.gameBoard.style.opacity = '1';
+        this.gameBoard.style.pointerEvents = 'auto';
+        this.gameBoard.classList.remove('opacity-0', 'pointer-events-none');
     }
     
     // 添加事件监听
@@ -67,7 +100,7 @@ class GameUI {
         //不需要支持键盘事件
         // document.addEventListener('keydown', (event) => {
         //     if (this.game.isGameOver) return;
-            
+        //     
         //     switch (event.key) {
         //         case 'ArrowUp':
         //             event.preventDefault();
@@ -133,21 +166,251 @@ class GameUI {
         });
         
         // 新游戏按钮
-        this.newGameButton.addEventListener('click', () => {
-            this.restartGame();
-        });
+        // this.newGameButton.addEventListener('click', () => {
+        //     this.restartGame();
+        // });
         
         // 重新开始按钮
         this.restartGameButton.addEventListener('click', () => {
+            // 上报点击再来一次事件
+            trackGAEvent('game_restarted', {
+                event_category: 'Game Flow',
+                event_label: 'User restarted the game'
+            });
             this.restartGame();
         });
         
-        // 玩法说明按钮
-        this.howToPlayButton.addEventListener('click', () => {
-            this.gameRulesElement.classList.toggle('hidden');
+        // 开始挑战按钮
+        this.startChallengeButton.addEventListener('click', () => {
+            // 上报点击开始挑战事件
+            trackGAEvent('challenge_started', {
+                event_category: 'Game Flow',
+                event_label: 'User started the 2048 challenge'
+            });
+            this.startGameChallenge();
         });
+        
+        // 游戏结束遮罩中的下载按钮
+        if (this.downloadAppButton) {
+            this.downloadAppButton.addEventListener('click', () => {
+                // 上报点击下载App事件
+                trackGAEvent('app_download_clicked', {
+                    event_category: 'Conversion',
+                    event_label: 'User clicked download button in game over screen'
+                });
+            });
+        }
+        
+        // 游戏下载区域中的下载按钮
+        const downloadAppBtn = document.getElementById('download-app-btn');
+        if (downloadAppBtn) {
+            downloadAppBtn.addEventListener('click', () => {
+                // 上报点击下载App事件
+                trackGAEvent('app_download_clicked', {
+                    event_category: 'Conversion',
+                    event_label: 'User clicked download button in main area'
+                });
+            });
+        }
     }
     
+    // 开始游戏挑战流程
+    startGameChallenge() {
+        // 平滑隐藏欢迎弹窗
+        this.welcomeScreen.style.transition = 'opacity 0.3s ease-out, transform 0.3s ease-out';
+        this.welcomeScreen.style.transform = 'scale(0.95)';
+        this.welcomeScreen.style.opacity = '0';
+        this.welcomeScreen.style.pointerEvents = 'none';
+        
+        // 完全隐藏弹窗
+        setTimeout(() => {
+            this.welcomeScreen.style.display = 'none';
+            // 显示准备倒计时并开始游戏
+            this.startGameWithCountdown();
+        }, 300);
+    }
+    
+    // 显示准备倒计时并开始游戏（可被直接调用以跳过欢迎弹窗）
+    startGameWithCountdown() {
+        // 确保倒计时屏幕可见并重置样式
+        this.countdownScreen.style.display = 'flex';
+        this.countdownScreen.style.opacity = '1';
+        this.countdownScreen.classList.remove('opacity-0', 'pointer-events-none');
+        
+        // 确保棋盘可见
+        this.gameBoard.style.opacity = '1';
+        this.gameBoard.style.pointerEvents = 'auto';
+        this.gameBoard.classList.remove('opacity-0', 'pointer-events-none');
+        
+        // 执行3-2-1倒计时
+        let readyCount = 3;
+        this.readyCountdownElement.textContent = readyCount;
+        
+        // 确保动画正确触发
+        this.readyCountdownElement.classList.remove('animate-ready-countdown');
+        void this.readyCountdownElement.offsetWidth; // 强制重排
+        this.readyCountdownElement.classList.add('animate-ready-countdown');
+        
+        const countdownInterval = setInterval(() => {
+            readyCount--;
+            if (readyCount > 0) {
+                this.readyCountdownElement.textContent = readyCount;
+                // 重置动画
+                this.readyCountdownElement.classList.remove('animate-ready-countdown');
+                void this.readyCountdownElement.offsetWidth; // 触发重排
+                this.readyCountdownElement.classList.add('animate-ready-countdown');
+            } else {
+                clearInterval(countdownInterval);
+                
+                // 隐藏倒计时准备界面
+                this.countdownScreen.classList.add('opacity-0', 'pointer-events-none');
+                this.countdownScreen.style.display = 'none';
+                
+                // 确保游戏计时器正确启动
+                setTimeout(() => {
+                    // 显式重置游戏时间
+                    this.game.remainingTime = this.game.timeLimit;
+                    this.game.remainingMilliseconds = 0;
+                    this.updateCountdown(this.game.remainingTime, this.game.remainingMilliseconds);
+                    
+                    // 确保游戏状态正确
+                    this.game.isGameOver = false;
+                    this.game.isWon = false;
+                    
+                    // 开始游戏计时器
+                    this.game.startTimer();
+                }, 300);
+            }
+        }, 1000);
+    }
+    
+    // 更新倒计时显示 - 支持毫秒级显示
+    updateCountdown(remainingTime, remainingMilliseconds) {
+        // 格式化毫秒数，只显示前两位
+        const formattedMilliseconds = Math.floor(remainingMilliseconds / 10).toString().padStart(2, '0');
+        
+        // 更新倒计时显示，格式为：秒.毫秒
+        this.countdownElement.textContent = `${remainingTime}.${formattedMilliseconds}`;
+        
+        // 当剩余时间小于5秒时，添加警告动画
+        if (remainingTime <= 5 && remainingTime > 0) {
+            this.timerElement.classList.add('animate-countdown-warning');
+        } else {
+            this.timerElement.classList.remove('animate-countdown-warning');
+        }
+    }
+    
+    // 清理游戏状态 - 在游戏结束时调用，确保所有动画和拖拽状态都被重置
+    cleanupGameState() {
+        // 清除所有拖拽目标的视觉反馈
+        this.clearDragTargetFeedback();
+        
+        // 如果正在拖拽，立即结束拖拽并清理拖拽元素
+        if (this.isDragging && this.draggedTileElement) {
+            // 恢复原始方块的可见性
+            if (this.dragStartPosition) {
+                const startCellIndex = this.dragStartPosition.row * this.game.cols + this.dragStartPosition.col;
+                const startCell = this.gameBoard.children[startCellIndex];
+                const originalTile = startCell.querySelector('div');
+                if (originalTile) {
+                    originalTile.style.transition = 'none';
+                    originalTile.style.opacity = '1';
+                }
+            }
+            
+            // 移除拖拽元素
+            if (this.draggedTileElement.parentNode) {
+                this.draggedTileElement.parentNode.removeChild(this.draggedTileElement);
+            }
+            
+            // 重置拖拽状态
+            this.isDragging = false;
+            this.draggedTile = null;
+            this.draggedTileElement = null;
+            this.dragStartPosition = null;
+        }
+        
+        // 清除所有方块上的动画和样式
+        this.clearAllTileAnimations();
+        
+        // 重新渲染棋盘，确保所有方块都显示在正确位置
+        this.renderBoard();
+    }
+    
+    // 显示游戏结果（成功或失败）
+    showGameResult(isSuccess, reason = null) {
+        // 在显示结果之前，清理所有游戏状态
+        this.cleanupGameState();
+        
+        // 获取当前得分
+        const currentScore = this.game.score || 0;
+        
+        // 上报挑战成功或失败事件
+        const eventName = isSuccess ? 'challenge_success' : 'challenge_failed';
+        trackGAEvent(eventName, {
+            event_category: 'Game Result',
+            event_label: isSuccess ? 'User successfully completed the challenge' : `Challenge failed due to ${reason || 'unknown'}`,
+            value: currentScore
+        });
+        
+        // 设置标题和消息
+        if (isSuccess) {
+            this.gameOverTitle.textContent = 'Challenge Complete!';
+            this.gameOverMessage.textContent = 'Congratulations! You merged to 2048 within 30 seconds! You\'re a gaming master! Download the full app for more challenges!';
+        } else {
+            if (reason === 'no_moves') {
+                this.gameOverTitle.textContent = 'Challenge Failed!';
+                this.gameOverMessage.textContent = 'No more moves available! Download the full app to practice and challenge your limits!';
+            } else {
+                this.gameOverTitle.textContent = 'Time\'s Up!';
+                this.gameOverMessage.textContent = '30 seconds are up! Download the full app to practice and challenge your limits!';
+            }
+        }
+        
+        // 显示游戏结束遮罩
+        this.gameOverElement.classList.remove('opacity-0', 'pointer-events-none');
+    }
+    
+    // 显示游戏结束或获胜
+    showGameOver() {
+        // 这个方法已被showGameResult方法替代，但保留以保持向后兼容性
+        const isSuccess = this.game.isWon;
+        this.showGameResult(isSuccess);
+    }
+    
+    // 重新开始游戏 - 包含完整的倒计时流程
+    restartGame() {
+        // 重置游戏状态
+        this.game.resetGame();
+        
+        // 隐藏所有界面
+        this.gameOverElement.classList.add('opacity-0', 'pointer-events-none');
+        this.countdownScreen.classList.add('opacity-0', 'pointer-events-none');
+        this.welcomeScreen.classList.add('opacity-0', 'pointer-events-none');
+        this.welcomeScreen.style.display = 'none';
+        
+        // 移除计时器警告动画
+        this.timerElement.classList.remove('animate-countdown-warning');
+        
+        // 重置倒计时显示
+        this.game.remainingMilliseconds = 0;
+        this.updateCountdown(this.game.timeLimit, this.game.remainingMilliseconds);
+        
+        // 重新初始化UI
+        this.initUI();
+        
+        // 重新初始化游戏事件回调（确保计时器和倒计时功能正常工作）
+        this.initGameCallbacks();
+        
+        // 渲染游戏棋盘
+        this.renderBoard();
+        
+        // 显示准备倒计时并开始游戏（跳过欢迎弹窗，直接进入倒计时）
+        setTimeout(() => {
+            this.startGameWithCountdown();
+        }, 500);
+    }
+
     // 根据触摸位置获取对应的数字方块
     getTileAtTouchPosition(touchX, touchY) {
         // 获取游戏棋盘的位置信息
@@ -934,7 +1197,7 @@ class GameUI {
         // 移除所有可能的颜色类
         tile.className = tile.className.replace(/bg-tile-\d+/g, '');
         
-        // 根据值设置更鲜明的颜色
+        // 根据值设置更鲜艳的颜色
         const colors = {
             2: 'bg-green-400',
             4: 'bg-blue-400',
@@ -1206,13 +1469,6 @@ class GameUI {
         this.gameOverElement.classList.remove('opacity-0', 'pointer-events-none');
     }
     
-    // 重新开始游戏
-    restartGame() {
-        this.game.initBoard();
-        this.game.generateTile();
-        this.initUI();
-        this.renderBoard();
-    }
 }
 
 // 页面加载完成后初始化游戏

@@ -1,5 +1,5 @@
 // 游戏核心逻辑
-class Game2048 {
+export class Game2048 {
     constructor() {
         this.rows = 7; // 行数（高度7行）
         this.cols = 5; // 列数（宽度5列）
@@ -12,6 +12,15 @@ class Game2048 {
         this.moved = false; // 是否有移动
         this.animationQueue = []; // 动画队列
         this.possibleValues = [2, 4, 8, 16, 32];
+        
+        // 限时挑战模式变量
+        this.timeLimit = 30; // 30秒限时挑战
+        this.remainingTime = this.timeLimit; // 剩余时间
+        this.remainingMilliseconds = 0; // 剩余毫秒数
+        this.timerInterval = null; // 计时器间隔
+        this.onTimeUpdate = null; // 时间更新回调
+        this.onGameComplete = null; // 游戏完成回调（成功/失败）
+        
         // 初始化棋盘（所有方格都已填充数字）
         this.initBoard();
         // 更新分数显示
@@ -38,6 +47,7 @@ class Game2048 {
         this.isWon = false;
         this.won = false;
         this.animationQueue = [];
+        this.remainingTime = this.timeLimit;
     }
     
     // 生成随机方块
@@ -164,13 +174,80 @@ class Game2048 {
         }
     }
 
+    // 设置分数
     setScore(score) {
         if (score > this.score) {
-                this.score = score;
+            this.score = score;
+        }
+        if (score === 2048) {
+            this.won = true;
+            this.isWon = true;
+            this.stopTimer();
+            if (this.onGameComplete) {
+                this.onGameComplete(true); // 挑战成功
             }
-            if (score === 2048) {
-                this.won = true;
+        }
+    }
+    
+    // 开始计时器
+    startTimer() {
+        this.remainingTime = this.timeLimit;
+        this.remainingMilliseconds = 0; // 新增毫秒级计时器变量
+        this.stopTimer(); // 确保之前的计时器已停止
+        
+        // 立即更新一次时间
+        if (this.onTimeUpdate) {
+            this.onTimeUpdate(this.remainingTime, this.remainingMilliseconds);
+        }
+        
+        // 设置新的计时器 - 改为每10毫秒更新一次以支持毫秒显示
+        this.timerInterval = setInterval(() => {
+            this.remainingMilliseconds -= 10;
+            
+            // 毫秒数小于0时，减少一秒并重置毫秒数
+            if (this.remainingMilliseconds < 0) {
+                this.remainingTime--;
+                this.remainingMilliseconds = 990; // 接近1000毫秒但避免整数问题
             }
+            
+            if (this.onTimeUpdate) {
+                this.onTimeUpdate(this.remainingTime, this.remainingMilliseconds);
+            }
+            
+            // 时间用完，挑战失败
+            if (this.remainingTime <= 0 && this.remainingMilliseconds <= 0) {
+                this.stopTimer();
+                this.isGameOver = true;
+                if (this.onGameComplete) {
+                    this.onGameComplete(false); // 挑战失败
+                }
+            }
+        }, 10);
+    }
+    
+    // 停止计时器
+    stopTimer() {
+        if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+            this.timerInterval = null;
+        }
+    }
+    
+    // 重置游戏（用于重新开始挑战）
+    resetGame() {
+        this.stopTimer();
+        this.initBoard();
+        this.updateScoreDisplay();
+    }
+    
+    // 设置时间更新回调
+    setTimeUpdateCallback(callback) {
+        this.onTimeUpdate = callback;
+    }
+    
+    // 设置游戏完成回调
+    setGameCompleteCallback(callback) {
+        this.onGameComplete = callback;
     }
     // 向左移动
     moveLeft(touchedTile) {
@@ -925,6 +1002,13 @@ class Game2048 {
         
         // 没有可合并的方块，游戏结束
         this.isGameOver = true;
+        
+        // 如果游戏不是因为时间到结束的，而是因为没有可合并方块结束的，触发游戏完成回调
+        if (this.onGameComplete && this.remainingTime > 0) {
+            this.stopTimer();
+            this.onGameComplete(false, 'no_moves'); // 传递失败原因
+        }
+        
         return true;
     }
     
