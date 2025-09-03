@@ -1,20 +1,36 @@
 // URL参数处理逻辑和Google Analytics事件上报
 
 /**
- * 上报Google Analytics事件
+ * 检测当前环境是否为正式环境
+ * @returns {boolean} - 是否为正式环境
+ */
+function isProductionEnvironment() {
+    // 在开发环境中，我们使用 localhost 或 127.0.0.1
+    // 在正式环境中，URL 通常是生产域名
+    const hostname = window.location.hostname;
+    return !['localhost', '127.0.0.1'].includes(hostname) && 
+           !hostname.startsWith('192.168.') && 
+           !hostname.startsWith('10.');
+}
+
+/**
+ * 上报Google Analytics事件（仅在正式环境生效）
  * @param {string} eventName - 事件名称
  * @param {Object} eventParams - 事件参数
  */
 export function trackGAEvent(eventName, eventParams = {}) {
+    // 检查是否为正式环境
+    if (!isProductionEnvironment()) {
+        return; // 在开发环境中完全不进行任何GA相关操作
+    }
+    
     try {
-        // 检查gtag函数是否可用
+        // 仅在正式环境中检查gtag函数并上报事件
         if (window.gtag && typeof window.gtag === 'function') {
             window.gtag('event', eventName, eventParams);
-            console.log(`GA Event tracked: ${eventName}`, eventParams);
         }
     } catch (error) {
-        console.error('Error tracking GA event:', error);
-        // 即使出错也不会影响游戏正常运行
+        // 在开发环境中完全静默，正式环境中也不输出错误日志，避免暴露GA相关信息
     }
 }
 

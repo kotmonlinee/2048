@@ -11,13 +11,32 @@
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
-    <!-- Google Analytics -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-RZ7NVN15FH"></script>
+    <!-- Google Analytics (仅在正式环境加载) -->
     <script>
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){dataLayer.push(arguments);}
-        gtag('js', new Date());
-        gtag('config', 'G-RZ7NVN15FH');
+        // 检测当前环境是否为正式环境
+        function isProductionEnvironment() {
+            // 在开发环境中，我们使用 localhost 或 127.0.0.1
+            // 在正式环境中，URL 通常是生产域名
+            const hostname = window.location.hostname;
+            return !['localhost', '127.0.0.1'].includes(hostname) && 
+                   !hostname.startsWith('192.168.') && 
+                   !hostname.startsWith('10.');
+        }
+        
+        // 仅在正式环境中加载和初始化Google Analytics
+        if (isProductionEnvironment()) {
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-RZ7NVN15FH');
+            
+            // 动态加载Google Analytics脚本
+            const gaScript = document.createElement('script');
+            gaScript.async = true;
+            gaScript.src = 'https://www.googletagmanager.com/gtag/js?id=G-RZ7NVN15FH';
+            document.head.appendChild(gaScript);
+        }
+        // 开发环境中完全不初始化任何GA相关功能
     </script>
     
     <!-- Tailwind 配置 -->
