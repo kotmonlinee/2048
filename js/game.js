@@ -1011,6 +1011,68 @@ export class Game2048 {
         
         return true;
     }
+
+    // 查找第一个可合并的方块对
+    findFirstMergeablePair() {
+        // 检查水平方向的可合并方块
+        for (let i = 0; i < this.rows; i++) {
+            for (let j = 0; j < this.cols - 1; j++) {
+                if (this.board[i][j] === this.board[i][j + 1]) {
+                    return {
+                        from: {row: i, col: j},
+                        to: {row: i, col: j + 1},
+                        direction: 'right',
+                        value: this.board[i][j]
+                    };
+                }
+            }
+        }
+
+        // 检查水平方向的可合并方块（反向）
+        for (let i = 0; i < this.rows; i++) {
+            for (let j = this.cols - 1; j > 0; j--) {
+                if (this.board[i][j] === this.board[i][j - 1]) {
+                    return {
+                        from: {row: i, col: j},
+                        to: {row: i, col: j - 1},
+                        direction: 'left',
+                        value: this.board[i][j]
+                    };
+                }
+            }
+        }
+
+        // 检查垂直方向的可合并方块
+        for (let j = 0; j < this.cols; j++) {
+            for (let i = 0; i < this.rows - 1; i++) {
+                if (this.board[i][j] === this.board[i + 1][j]) {
+                    return {
+                        from: {row: i, col: j},
+                        to: {row: i + 1, col: j},
+                        direction: 'down',
+                        value: this.board[i][j]
+                    };
+                }
+            }
+        }
+
+        // 检查垂直方向的可合并方块（反向）
+        for (let j = 0; j < this.cols; j++) {
+            for (let i = this.rows - 1; i > 0; i--) {
+                if (this.board[i][j] === this.board[i - 1][j]) {
+                    return {
+                        from: {row: i, col: j},
+                        to: {row: i - 1, col: j},
+                        direction: 'up',
+                        value: this.board[i][j]
+                    };
+                }
+            }
+        }
+
+        // 没有找到可合并的方块
+        return null;
+    }
     
     // 更新分数显示
     updateScoreDisplay() {

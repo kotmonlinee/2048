@@ -23,6 +23,11 @@ class GameUI {
         this.gameOverMessage = document.getElementById('game-over-message');
         this.downloadAppButton = document.getElementById('download-app');
         
+        // 游戏引导元素
+        this.gameGuide = document.getElementById('game-guide');
+       // this.guideMessage = document.getElementById('guide-message');
+        this.guideHighlight = document.getElementById('guide-highlight');
+        
         // 触摸事件变量
         this.touchStartX = 0;
         this.touchStartY = 0;
@@ -60,6 +65,226 @@ class GameUI {
         this.game.setGameCompleteCallback((isSuccess, reason = null) => {
             this.showGameResult(isSuccess, reason);
         });
+    }
+
+    // 显示游戏引导
+    showGameGuide() {
+        // 查找第一个可合并的方块对
+        const mergeablePair = this.game.findFirstMergeablePair();
+        
+        if (mergeablePair) {
+            // 只显示滑动提示箭头，不显示弹窗
+            // 确保guide-message不显示
+            if (this.guideMessage) {
+                this.guideMessage.style.display = 'none';
+            }
+            
+            // 显示引导界面，但确保不会阻止玩家交互
+            this.gameGuide.classList.remove('opacity-0');
+            this.gameGuide.classList.add('pointer-events-none'); // 关键修改：添加pointer-events-none确保可点击下方元素
+            
+            // 高亮显示可合并的方块
+            this.highlightMergeableTiles(mergeablePair);
+        }
+    }
+
+    // 高亮显示可合并的方块并添加滑动提示
+    highlightMergeableTiles(mergeablePair) {
+        // 清空之前的高亮
+        this.guideHighlight.innerHTML = '';
+        
+        // 获取源方块和目标方块的DOM元素
+        const fromCell = this.getCellAtPosition(mergeablePair.from.row, mergeablePair.from.col);
+        const toCell = this.getCellAtPosition(mergeablePair.to.row, mergeablePair.to.col);
+        
+        if (fromCell && toCell) {
+            // 获取单元格的位置信息
+            const fromRect = fromCell.getBoundingClientRect();
+            const boardRect = this.gameBoard.getBoundingClientRect();
+            
+            // 计算相对位置
+            const fromX = fromRect.left - boardRect.left + fromRect.width / 2;
+            const fromY = fromRect.top - boardRect.top + fromRect.height / 2;
+            const toRect = toCell.getBoundingClientRect();
+            const toX = toRect.left - boardRect.left + toRect.width / 2;
+            const toY = toRect.top - boardRect.top + toRect.height / 2;
+            
+            // 创建滑动路径
+            const path = document.createElement('div');
+            path.className = 'absolute bg-primary/30 rounded-full transition-all duration-300 pointer-events-none';
+            path.style.width = '8px';
+            path.style.height = '8px';
+            path.style.left = `${fromX - 4}px`;
+            path.style.top = `${fromY - 4}px`;
+            path.style.transform = 'scale(0)';
+            path.style.zIndex = '10';
+            this.guideHighlight.appendChild(path);
+            
+            // 创建手指滑动动画
+            const finger = document.createElement('div');
+            finger.className = 'absolute pointer-events-none animate-swipe';
+            finger.style.fontSize = '32px'; // 增大手指图标尺寸使其更明显
+            finger.style.color = 'white';
+            finger.style.textShadow = '0 0 8px rgba(255, 255, 255, 0.8)'; // 添加发光效果
+            finger.style.zIndex = '12';
+            finger.style.left = `${fromX - 16}px`;
+            finger.style.top = `${fromY - 16}px`;
+            finger.style.transform = 'scale(0)';
+            finger.textContent = '👉'; // 手指图标
+            this.guideHighlight.appendChild(finger);
+            
+            // 添加动画效果
+            setTimeout(() => {
+                path.style.transform = 'scale(1)';
+                finger.style.transform = 'scale(1)';
+                setTimeout(() => {
+                    path.style.left = `${toX - 4}px`;
+                    path.style.top = `${toY - 4}px`;
+                    
+                    // 根据方向旋转手指图标
+                    let fingerRotation = 0;
+                    switch(mergeablePair.direction) {
+                        case 'right':
+                            fingerRotation = 0;
+                            break;
+                        case 'down':
+                            fingerRotation = 90;
+                            break;
+                        case 'left':
+                            fingerRotation = 180;
+                            break;
+                        case 'up':
+                            fingerRotation = 270;
+                            break;
+                    }
+                    
+                    // 添加手指滑动动画
+                    finger.style.transition = 'transform 0.6s ease-out, left 0.6s ease-out, top 0.6s ease-out'; // 延长动画时间
+                    finger.style.transform = `rotate(${fingerRotation}deg) scale(1.2)`; // 先放大再滑动
+                    
+                    // 延迟滑动，让放大效果先显示
+                    setTimeout(() => {
+                        finger.style.transform = `rotate(${fingerRotation}deg) scale(1)`;
+                        finger.style.left = `${toX - 16}px`;
+                        finger.style.top = `${toY - 16}px`;
+                    }, 150);
+                    
+                    // 动画完成后重置位置，创建循环动画
+                    setTimeout(() => {
+                        path.style.transition = 'none';
+                        path.style.left = `${fromX - 4}px`;
+                        path.style.top = `${fromY - 4}px`;
+                        path.style.transform = 'scale(0)';
+                        
+                        finger.style.transition = 'none';
+                        finger.style.left = `${fromX - 16}px`;
+                        finger.style.top = `${fromY - 16}px`;
+                        finger.style.transform = 'scale(0)';
+                        
+                        setTimeout(() => {
+                            path.style.transition = 'all 0.3s ease';
+                            finger.style.transition = 'all 0.3s ease';
+                        }, 50);
+                    }, 800);
+                }, 300);
+            }, 100);
+            
+            // 在源方块上添加箭头指示
+            const arrow = document.createElement('div');
+            arrow.className = 'absolute text-white font-bold text-2xl animate-guide-pulse pointer-events-none';
+            arrow.textContent = this.getDirectionArrow(mergeablePair.direction);
+            
+            // 设置箭头位置
+            const arrowSize = 24;
+            arrow.style.width = `${arrowSize}px`;
+            arrow.style.height = `${arrowSize}px`;
+            arrow.style.display = 'flex';
+            arrow.style.alignItems = 'center';
+            arrow.style.justifyContent = 'center';
+            arrow.style.left = `${fromX - arrowSize/2}px`;
+            arrow.style.top = `${fromY - arrowSize/2}px`;
+            arrow.style.zIndex = '11';
+            
+            // 根据方向旋转箭头
+            let rotation = 0;
+            switch(mergeablePair.direction) {
+                case 'right':
+                    rotation = 0;
+                    break;
+                case 'down':
+                    rotation = 90;
+                    break;
+                case 'left':
+                    rotation = 180;
+                    break;
+                case 'up':
+                    rotation = 270;
+                    break;
+            }
+            arrow.style.transform = `rotate(${rotation}deg)`;
+            
+            this.guideHighlight.appendChild(arrow);
+            
+            // 高亮源方块和目标方块
+            const highlightFrom = this.createHighlight(fromCell, 'from');
+            const highlightTo = this.createHighlight(toCell, 'to');
+            
+            this.guideHighlight.appendChild(highlightFrom);
+            this.guideHighlight.appendChild(highlightTo);
+        }
+    }
+
+    // 创建高亮元素
+    createHighlight(cell, type) {
+        const rect = cell.getBoundingClientRect();
+        const boardRect = this.gameBoard.getBoundingClientRect();
+        
+        const highlight = document.createElement('div');
+        highlight.className = `absolute rounded-lg transition-all duration-300 border-2 pointer-events-none`;
+        highlight.style.width = `${rect.width}px`;
+        highlight.style.height = `${rect.height}px`;
+        highlight.style.left = `${rect.left - boardRect.left}px`;
+        highlight.style.top = `${rect.top - boardRect.top}px`;
+        highlight.style.zIndex = '9';
+        
+        // 设置不同类型的高亮样式
+        if (type === 'from') {
+            highlight.style.borderColor = '#FFD166';
+            highlight.style.animation = 'pulse 1s ease-in-out infinite';
+        } else {
+            highlight.style.borderColor = '#06D6A0';
+        }
+        
+        return highlight;
+    }
+
+    // 获取方向箭头符号
+    getDirectionArrow(direction) {
+        switch(direction) {
+            case 'right':
+                return '→';
+            case 'down':
+                return '↓';
+            case 'left':
+                return '←';
+            case 'up':
+                return '↑';
+            default:
+                return '→';
+        }
+    }
+
+    // 获取指定位置的单元格
+    getCellAtPosition(row, col) {
+        const cells = this.gameBoard.children;
+        const index = row * this.game.cols + col;
+        return cells[index] || null;
+    }
+
+    // 隐藏游戏引导
+    hideGameGuide() {
+        this.gameGuide.classList.add('opacity-0', 'pointer-events-none');
+        this.guideHighlight.innerHTML = '';
     }
     
     // 初始化UI
@@ -129,6 +354,9 @@ class GameUI {
         this.gameBoard.addEventListener('touchstart', (event) => {
             event.preventDefault(); // 防止页面滚动
             if (this.game.isGameOver) return;
+            
+            // 隐藏游戏引导
+            this.hideGameGuide();
             
             this.touchStartX = event.touches[0].clientX;
             this.touchStartY = event.touches[0].clientY;
@@ -281,6 +509,11 @@ class GameUI {
                     
                     // 开始游戏计时器
                     this.game.startTimer();
+                    
+                    // 显示游戏引导（延迟1秒，让玩家先看到初始棋盘）
+                    setTimeout(() => {
+                        this.showGameGuide();
+                    }, 1000);
                 }, 300);
             }
         }, 1000);

@@ -118,11 +118,49 @@
             }
             @keyframes pulse {
                 0%, 100% {
-                    opacity: 1;
-                }
-                50% {
+                    transform: scale(1);
                     opacity: 0.7;
                 }
+                50% {
+                    transform: scale(1.05);
+                    opacity: 0.9;
+                }
+            }
+            
+            /* 游戏引导专用动画 */
+            @keyframes guide-pulse {
+                0%, 100% {
+                    transform: scale(1);
+                    opacity: 0.6;
+                }
+                50% {
+                    transform: scale(1.1);
+                    opacity: 0.9;
+                }
+            }
+            
+            /* 手指滑动动画 */
+            .animate-swipe {
+                animation: swipe 0.5s ease;
+            }
+            
+            @keyframes swipe {
+                0% {
+                    transform: scale(1);
+                    opacity: 1;
+                }
+                70% {
+                    transform: scale(1.2);
+                    opacity: 1;
+                }
+                100% {
+                    transform: scale(1);
+                    opacity: 0.8;
+                }
+            }
+            
+            .animate-guide-pulse {
+                animation: guide-pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
             }
             @keyframes pop {
                 0% {
@@ -196,7 +234,7 @@
             </button>
         </div> -->
         
-        <!-- 游戏棋盘 -->
+        <!-- 游戏主容器 - 统一的定位参考点 -->
         <div class="relative w-full max-w-4xl mx-auto mb-8" style="aspect-ratio: 5/7;">
             <!-- 棋盘背景 -->
             <div id="game-board" class="absolute inset-0 bg-dark/20 rounded-xl grid gap-3 p-4 transition-all duration-300">
@@ -240,9 +278,41 @@
                   <div class="bg-tile-0/80 rounded-lg"></div>
                   <div class="bg-tile-0/80 rounded-lg"></div>
             </div>
+            
+            <!-- 倒计时准备界面 -->
+            <div id="countdown-screen" class="absolute inset-0 bg-dark/90 rounded-xl flex flex-col justify-center items-center z-20 opacity-0 pointer-events-none transition-opacity duration-500">
+                <div id="ready-countdown" class="text-[clamp(5rem,15vw,8rem)] font-bold text-white mb-6">3</div>
+                <p class="text-light text-xl">Get Ready!</p>
+            </div>
+
+            <!-- 游戏引导提示 -->
+            <div id="game-guide" class="absolute inset-0 bg-black/40 rounded-xl flex items-center justify-center z-20 opacity-0 pointer-events-none transition-opacity duration-500">
+                <!-- <div id="guide-message" class="bg-white/90 text-dark rounded-lg px-6 py-4 text-center max-w-xs shadow-lg">
+                    <h3 class="text-xl font-bold mb-2">How to Play</h3>
+                    <p class="text-sm">Drag the tile to merge with another tile of the same value!</p>
+                </div> -->
+                <!-- 滑动提示箭头 - 将在JS中动态定位 -->
+                <div id="guide-highlight" class="absolute w-full h-full pointer-events-none">
+                    <!-- 滑动提示元素将在JS中动态创建 -->
+                </div>
+            </div>
+            
+            <!-- 游戏结束遮罩 - 支持成功/失败两种状态 -->
+            <div id="game-over" class="absolute inset-0 bg-dark/80 rounded-xl flex flex-col justify-center items-center opacity-0 pointer-events-none transition-opacity duration-500 z-10">
+                <h2 id="game-over-title" class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold text-white mb-4">Game Over！</h2>
+                <p id="game-over-message" class="text-light mb-6 text-center px-4">Time's up! Download the full version to unlock more features!</p>
+                <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
+                    <button id="restart-game" class="bg-primary hover:bg-primary/90 text-white font-bold py-3 px-8 rounded-lg transition-all transform hover:scale-105 shadow-lg">
+                        Try Again
+                    </button>
+                    <button id="download-app" class="bg-accent hover:bg-accent/90 text-dark font-bold py-3 px-8 rounded-lg transition-all transform hover:scale-105 shadow-lg">
+                        Download App
+                    </button>
+                </div>
+            </div>
         </div>
         
-        <!-- 欢迎弹窗 (居中显示，不覆盖棋盘) -->
+        <!-- 欢迎弹窗 (居中显示) -->
         <div id="welcome-screen" class="fixed inset-0 flex items-center justify-center z-50 p-4">
             <div class="bg-gradient-to-br from-primary to-secondary rounded-2xl p-8 max-w-md w-full shadow-2xl transform transition-all duration-300">
                 <h2 class="text-[clamp(1.8rem,3vw,2.5rem)] font-bold text-white mb-4 text-center text-shadow">2048 Time Challenge</h2>
@@ -256,18 +326,6 @@
                 </div>
             </div>
         </div>
-            
-            <!-- 倒计时准备界面 -->
-            <div id="countdown-screen" class="absolute inset-0 bg-dark/90 rounded-xl flex flex-col justify-center items-center z-20 opacity-0 pointer-events-none transition-opacity duration-500">
-                <div id="ready-countdown" class="text-[clamp(5rem,15vw,8rem)] font-bold text-white mb-6">3</div>
-                <p class="text-light text-xl">Get Ready!</p>
-            </div>
-            
-            <!-- 棋盘背景 -->
-            <div id="game-board" class="absolute inset-0 bg-dark/20 rounded-xl grid gap-3 p-4 transition-all duration-300 opacity-0 pointer-events-none">
-                <!-- 空白格子 -->
-                  <div class="bg-tile-0/80 rounded-lg"></div>
-                  <div class="bg-tile-0/80 rounded-lg"></div>
                   <div class="bg-tile-0/80 rounded-lg"></div>
                   <div class="bg-tile-0/80 rounded-lg"></div>
                   <div class="bg-tile-0/80 rounded-lg"></div>
@@ -308,8 +366,8 @@
             
             <!-- 游戏结束遮罩 - 支持成功/失败两种状态 -->
             <div id="game-over" class="absolute inset-0 bg-dark/80 rounded-xl flex flex-col justify-center items-center opacity-0 pointer-events-none transition-opacity duration-500 z-10">
-                <h2 id="game-over-title" class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold text-white mb-4">游戏结束！</h2>
-                <p id="game-over-message" class="text-light mb-6 text-center px-4">挑战失败了？下载完整游戏体验更多精彩内容！</p>
+                <h2 id="game-over-title" class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold text-white mb-4">Game Over！</h2>
+                <p id="game-over-message" class="text-light mb-6 text-center px-4">Time's up! Download the full version to unlock more features!</p>
                 <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
                     <button id="restart-game" class="bg-primary hover:bg-primary/90 text-white font-bold py-3 px-8 rounded-lg transition-all transform hover:scale-105 shadow-lg">
                         Play Again
