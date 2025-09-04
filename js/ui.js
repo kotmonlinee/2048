@@ -1,7 +1,7 @@
 // UI交互逻辑
 import { Game2048 } from './game.js'
 import { trackGAEvent } from './paramsHandler.js'
-
+import { trackChallengeStarted } from './paramsHandler.js'
 class GameUI {
     constructor() {
         this.game = new Game2048();
@@ -187,6 +187,8 @@ class GameUI {
                 event_category: 'Game Flow',
                 event_label: 'User started the 2048 challenge'
             });
+
+            trackChallengeStarted();
             this.startGameChallenge();
         });
         

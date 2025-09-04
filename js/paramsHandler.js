@@ -87,6 +87,27 @@ function createDownloadLink(params) {
     return `${baseUrl}?${downloadParams.toString()}`;
 }
 
+export function trackChallengeStarted() {
+
+    // 获取URL参数
+    const urlParams = getUrlParams();
+    const clickId = urlParams.clickid;
+    if (!clickId) return; // 确保click_id存在
+
+    // 获取当前时间戳（精确到秒）
+    const timestamp = Math.floor(Date.now() / 1000);
+
+    // 构建打点URL
+    const trackingUrl = `https://pb.taurusx.com/general/event?click_id=${clickId}&event_name=start_challenge&event_time=${timestamp}`;
+
+    // 使用Image对象发送GET请求
+    const img = new Image();
+    img.src = trackingUrl;
+      // 可选：添加请求状态监听
+    img.onload = () => console.log('Tracking request sent successfully');
+    img.onerror = () => console.error('Tracking request failed');
+}
+
 /**
  * 更新页面上的所有下载链接
  */
